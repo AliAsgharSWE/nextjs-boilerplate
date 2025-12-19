@@ -2,4 +2,3 @@
   "buildCommand": "yarn install --network-timeout 600000 && yarn build",
   "installCommand": "yarn install --network-timeout 600000"
 }
-
