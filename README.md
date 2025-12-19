@@ -226,7 +226,6 @@ Follow these steps to create a new page:
    ```
 
 3. **Create container** in `src/containers/new-page/`:
-
    - `index.tsx` - Container component
    - `data.ts` - Page data
    - `types.ts` - TypeScript types
@@ -239,13 +238,13 @@ For detailed instructions, see [Nextjs-Boilerplate.md](./Nextjs-Boilerplate.md).
 
 ## 📜 Available Scripts
 
-| Script | Description |
-|--------|-------------|
-| `yarn dev` | Start development server |
-| `yarn build` | Build for production |
-| `yarn start` | Start production server |
-| `yarn lint` | Run ESLint |
-| `yarn format` | Format code with Prettier |
+| Script         | Description                |
+| -------------- | -------------------------- |
+| `yarn dev`     | Start development server   |
+| `yarn build`   | Build for production       |
+| `yarn start`   | Start production server    |
+| `yarn lint`    | Run ESLint                 |
+| `yarn format`  | Format code with Prettier  |
 | `yarn prepare` | Initialize Husky Git hooks |
 
 ## 🔧 Configuration
