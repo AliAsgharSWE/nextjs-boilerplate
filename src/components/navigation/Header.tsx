@@ -6,7 +6,6 @@ import { routes } from "@/src/constants/routes";
 import { navItems } from "./config";
 
 const Header: FC = () => {
-
   return (
     <header className="w-full bg-white shadow-sm">
       <nav className="container mx-auto px-4 py-4">
@@ -33,4 +32,3 @@ const Header: FC = () => {
 };
 
 export default Header;
-

@@ -17,4 +17,3 @@ const MainLayout: FC<MainLayoutProps> = ({ children }) => {
 };
 
 export default MainLayout;
-

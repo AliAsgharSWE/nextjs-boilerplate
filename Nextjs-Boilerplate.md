@@ -123,12 +123,14 @@ NextJS-Boilerplate/
 ```
 
 ---
+
 .env file:
 DOMAIN=http://localhost:3000
 APPLICATION_FROM_ADDRESS=noreply@example.com
 APPLICATION_TO_ADDRESS=contact@example.com
 
 # Nodemailer SMTP Configuration
+
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_SECURE=false
@@ -138,6 +140,7 @@ APPLICATION_FROM_ADDRESS=noreply@example.com
 APPLICATION_TO_ADDRESS=contact@example.com
 
 ---
+
 ---
 
 ## Data Flow Architecture
@@ -942,28 +945,23 @@ Also install and use husky.
 
 pre-commit:
 #!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
+. "$(dirname "$0")/\_/husky.sh"
 
 echo "Running pre-commit: formatting code..."
 yarn format
 echo "✅ Pre-commit finished."
 
-
 pre-push:
 
 #!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
+. "$(dirname "$0")/\_/husky.sh"
 
 echo "Running pre-push: building app..."
 if ! yarn build; then
-  echo "❌ Build failed. Fix errors before pushing."
-  exit 1
+echo "❌ Build failed. Fix errors before pushing."
+exit 1
 fi
 echo "✅ Build succeeded. Push can proceed."
-
-
-
-
 
 **Last Updated:** 2025
 **Project:** Next.js Boilerplate

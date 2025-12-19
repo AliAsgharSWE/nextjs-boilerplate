@@ -3,7 +3,8 @@ export const routes = {
     title: "Home",
     path: "/",
     metaTitle: "Home - Next.js Boilerplate",
-    description: "Welcome to Next.js Boilerplate - A modern web application built with Next.js 16",
+    description:
+      "Welcome to Next.js Boilerplate - A modern web application built with Next.js 16",
   },
   ABOUT: {
     title: "About",
@@ -18,4 +19,3 @@ export const routes = {
     description: "Get in touch with us",
   },
 } as const;
-

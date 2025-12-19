@@ -12,4 +12,3 @@ const LayoutScriptsWrapper = () => {
 };
 
 export default LayoutScriptsWrapper;
-

@@ -6,4 +6,3 @@ export const contactPageData: ContactPageDataType = {
     description: "We'd love to hear from you. Get in touch with us today.",
   },
 };
-

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.scss";
+import "./globals.css";
 import MainLayout from "@/src/components/common/layouts/MainLayout";
 import LayoutScriptsWrapper from "@/src/scripts/LayoutScriptsWrapper";
 import { Suspense } from "react";
@@ -30,9 +30,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <MainLayout>
-          {children}
-        </MainLayout>
+        <MainLayout>{children}</MainLayout>
         <Suspense fallback={<></>}>
           <LayoutScriptsWrapper />
         </Suspense>

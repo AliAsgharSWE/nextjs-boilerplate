@@ -5,4 +5,3 @@ export const navItems = [
   { label: routes.ABOUT.title, path: routes.ABOUT.path },
   { label: routes.CONTACT.title, path: routes.CONTACT.path },
 ];
-

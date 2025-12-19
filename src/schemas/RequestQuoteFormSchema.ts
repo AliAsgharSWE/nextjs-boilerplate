@@ -10,4 +10,3 @@ export const requestQuoteFormSchema = z.object({
 });
 
 export type RequestQuoteFormData = z.infer<typeof requestQuoteFormSchema>;
-

@@ -9,7 +9,9 @@ const HeroSection: FC<HeroSectionProps> = ({ clients }) => {
     <section className="w-full py-16 bg-gradient-to-r from-blue-500 to-purple-600 text-white">
       <div className="container mx-auto px-4 text-center">
         <h1 className="text-5xl font-bold mb-4">Welcome to Our Platform</h1>
-        <p className="text-xl mb-8">Building amazing experiences with Next.js</p>
+        <p className="text-xl mb-8">
+          Building amazing experiences with Next.js
+        </p>
         {clients && clients.length > 0 && (
           <div className="mt-12">
             <p className="text-sm mb-4">Trusted by:</p>
@@ -28,4 +30,3 @@ const HeroSection: FC<HeroSectionProps> = ({ clients }) => {
 };
 
 export default HeroSection;
-

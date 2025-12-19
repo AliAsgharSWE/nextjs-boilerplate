@@ -22,4 +22,3 @@ const ContactSection: FC<ContactSectionProps> = ({ onSubmit }) => {
 };
 
 export default ContactSection;
-

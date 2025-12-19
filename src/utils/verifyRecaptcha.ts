@@ -13,7 +13,6 @@ export const verifyRecaptcha = async (token: string): Promise<boolean> => {
   // });
   // const data = await response.json();
   // return data.success;
-  
+
   return true; // Placeholder
 };
-

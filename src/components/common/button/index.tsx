@@ -15,12 +15,15 @@ const Button: FC<ButtonProps> = ({
   className = "",
   ...props
 }) => {
-  const baseStyles = "font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2";
-  
+  const baseStyles =
+    "font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2";
+
   const variantStyles = {
     primary: "bg-black text-white hover:bg-gray-800 focus:ring-black",
-    secondary: "bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500",
-    outline: "border-2 border-black text-black hover:bg-black hover:text-white focus:ring-black",
+    secondary:
+      "bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500",
+    outline:
+      "border-2 border-black text-black hover:bg-black hover:text-white focus:ring-black",
   };
 
   const sizeStyles = {
@@ -40,4 +43,3 @@ const Button: FC<ButtonProps> = ({
 };
 
 export default Button;
-

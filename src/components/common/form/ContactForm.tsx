@@ -3,7 +3,10 @@
 import { FC } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { contactFormSchema, ContactFormData } from "@/src/schemas/ContactUsFormSchema";
+import {
+  contactFormSchema,
+  ContactFormData,
+} from "@/src/schemas/ContactUsFormSchema";
 import Button from "@/src/components/common/button";
 
 interface ContactFormProps {
@@ -50,7 +53,9 @@ const ContactForm: FC<ContactFormProps> = ({ onSubmit }) => {
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
         />
         {errors.firstName && (
-          <p className="text-red-500 text-sm mt-1">{errors.firstName.message}</p>
+          <p className="text-red-500 text-sm mt-1">
+            {errors.firstName.message}
+          </p>
         )}
       </div>
 
@@ -93,7 +98,9 @@ const ContactForm: FC<ContactFormProps> = ({ onSubmit }) => {
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
         />
         {errors.companyName && (
-          <p className="text-red-500 text-sm mt-1">{errors.companyName.message}</p>
+          <p className="text-red-500 text-sm mt-1">
+            {errors.companyName.message}
+          </p>
         )}
       </div>
 
@@ -117,7 +124,9 @@ const ContactForm: FC<ContactFormProps> = ({ onSubmit }) => {
           ))}
         </div>
         {errors.serviceType && (
-          <p className="text-red-500 text-sm mt-1">{errors.serviceType.message}</p>
+          <p className="text-red-500 text-sm mt-1">
+            {errors.serviceType.message}
+          </p>
         )}
       </div>
 
@@ -144,4 +153,3 @@ const ContactForm: FC<ContactFormProps> = ({ onSubmit }) => {
 };
 
 export default ContactForm;
-

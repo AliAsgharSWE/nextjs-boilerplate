@@ -22,4 +22,3 @@ export const useResponsive = () => {
 
   return { isMobile, isTablet, isDesktop };
 };
-

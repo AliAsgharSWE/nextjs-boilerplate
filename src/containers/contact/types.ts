@@ -4,4 +4,3 @@ export interface ContactPageDataType {
     description: string;
   };
 }
-

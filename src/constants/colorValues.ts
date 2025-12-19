@@ -3,4 +3,3 @@ export const colorValues = {
   secondary: "#ffffff",
   // Add more color constants as needed
 } as const;
-

@@ -2,10 +2,7 @@
 
 import { useState, useEffect } from "react";
 
-export const useAutoSlide = (
-  itemCount: number,
-  interval: number = 5000
-) => {
+export const useAutoSlide = (itemCount: number, interval: number = 5000) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
@@ -19,9 +16,9 @@ export const useAutoSlide = (
   }, [itemCount, interval]);
 
   const next = () => setCurrentIndex((prev) => (prev + 1) % itemCount);
-  const prev = () => setCurrentIndex((prev) => (prev - 1 + itemCount) % itemCount);
+  const prev = () =>
+    setCurrentIndex((prev) => (prev - 1 + itemCount) % itemCount);
   const goTo = (index: number) => setCurrentIndex(index);
 
   return { currentIndex, next, prev, goTo };
 };
-

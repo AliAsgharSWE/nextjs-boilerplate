@@ -37,4 +37,3 @@ const Hero: FC<HeroProps> = ({ title, description, image, imageAlt }) => {
 };
 
 export default Hero;
-

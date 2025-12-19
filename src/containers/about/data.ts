@@ -7,7 +7,8 @@ export const aboutPageData: AboutPageDataType = {
   },
   briefing: {
     title: "Our Story",
-    content: "We are a team of passionate developers building modern web applications.",
+    content:
+      "We are a team of passionate developers building modern web applications.",
     items: [
       "Founded in 2024",
       "Focused on quality and innovation",
@@ -15,4 +16,3 @@ export const aboutPageData: AboutPageDataType = {
     ],
   },
 };
-

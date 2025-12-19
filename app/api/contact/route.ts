@@ -9,10 +9,7 @@ export async function POST(req: NextRequest) {
 
     // Check honeypot field (spam protection)
     if (userData.middleName && userData.middleName.length > 0) {
-      return NextResponse.json(
-        { error: "Spam detected" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Spam detected" }, { status: 400 });
     }
 
     // Validate form data
@@ -88,4 +85,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

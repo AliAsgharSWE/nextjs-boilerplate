@@ -11,4 +11,3 @@ export const useAccordion = (initialState = false) => {
 
   return { isOpen, toggle, open, close };
 };
-

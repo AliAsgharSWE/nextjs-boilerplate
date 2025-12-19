@@ -22,4 +22,3 @@ export const useScroll = () => {
 
   return { scrollY, scrollDirection };
 };
-

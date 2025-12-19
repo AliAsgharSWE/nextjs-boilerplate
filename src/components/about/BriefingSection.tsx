@@ -29,4 +29,3 @@ const BriefingSection: FC<BriefingSectionProps> = ({ briefing }) => {
 };
 
 export default BriefingSection;
-
