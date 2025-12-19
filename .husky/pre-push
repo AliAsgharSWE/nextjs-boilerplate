@@ -1,0 +1,10 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "Running pre-push: building app..."
+if ! yarn build; then
+  echo "❌ Build failed. Fix errors before pushing."
+  exit 1
+fi
+echo "✅ Build succeeded. Push can proceed."
+

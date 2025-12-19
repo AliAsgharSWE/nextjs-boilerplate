@@ -1,0 +1,12 @@
+node_modules
+.next
+out
+build
+dist
+*.lock
+yarn.lock
+package-lock.json
+pnpm-lock.yaml
+.husky
+.env*
+
