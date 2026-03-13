@@ -1,0 +1,525 @@
+name: Repository Standards Enforcement
+
+on:
+  push:
+    branches-ignore:
+      - master
+      - main
+      - develop
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+# Limit to one run per branch/PR at a time
+concurrency:
+  group: repo-standards-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  validate-standards:
+    name: Validate Repository Standards
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ──────────────────────────────────────────────────────────
+      # CHECK 1 & 2: Branch name + commit messages
+      # ──────────────────────────────────────────────────────────
+      - name: Validate branch name & commit messages
+        id: git-checks
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+        run: |
+          BRANCH_PATTERN='^(feature|fix|hotfix|chore|refactor|docs|test)/[a-z0-9][a-z0-9-]*[a-z0-9]$'
+          COMMIT_PATTERN='^(feat|fix|docs|style|refactor|test|chore|perf|ci)(\([a-zA-Z0-9_-]+\))?: .{1,72}$'
+          PROTECTED_BRANCHES="master main develop"
+
+          branch_ok=true
+          commits_ok=true
+          subject_len_ok=true
+          trailing_period_ok=true
+          no_wip_ok=true
+          no_fixup_ok=true
+          no_merge_commits_ok=true
+
+          bad_commits=()
+          long_subjects=()
+          trailing_period_commits=()
+          wip_commits=()
+          fixup_commits=()
+          merge_commits_found=()
+
+          # ── Branch name ──────────────────────────────────────
+          echo "::group::Branch name"
+          if echo "$PROTECTED_BRANCHES" | grep -qw "$BRANCH_NAME"; then
+            echo "⏭️  Protected branch — skipping: $BRANCH_NAME"
+          elif echo "$BRANCH_NAME" | grep -qP "$BRANCH_PATTERN"; then
+            echo "✅ Valid: $BRANCH_NAME"
+          else
+            echo "❌ Invalid: $BRANCH_NAME"
+            branch_ok=false
+          fi
+          echo "::endgroup::"
+
+          # ── Gather commits ───────────────────────────────────
+          if [[ "$EVENT_NAME" == "pull_request" && -n "$BASE_SHA" ]]; then
+            COMMITS=$(git log "$BASE_SHA..$HEAD_SHA" --format="%s" 2>/dev/null || true)
+          else
+            COMMITS=$(git log -1 --format="%s")
+          fi
+
+          # ── Commit message checks ────────────────────────────
+          echo "::group::Commit messages"
+          while IFS= read -r msg; do
+            [[ -z "$msg" ]] && continue
+
+            # Skip auto-generated merge commits from GitHub
+            if echo "$msg" | grep -qE "^Merge (pull request #[0-9]+ from|branch '|remote-tracking)"; then
+              echo "⏭️  Skipping auto merge: $msg"
+              continue
+            fi
+
+            # CHECK: No merge commits (linear history)
+            if echo "$msg" | grep -qE "^Merge "; then
+              echo "❌ Merge commit detected: $msg"
+              merge_commits_found+=("$msg")
+              no_merge_commits_ok=false
+              continue
+            fi
+
+            # CHECK: No WIP commits
+            if echo "$msg" | grep -qiE "^(\[WIP\]|WIP:?|WIP\s)"; then
+              echo "❌ WIP commit: $msg"
+              wip_commits+=("$msg")
+              no_wip_ok=false
+              continue
+            fi
+
+            # CHECK: No fixup!/squash! commits
+            if echo "$msg" | grep -qE "^(fixup!|squash!) "; then
+              echo "❌ Fixup/squash commit: $msg"
+              fixup_commits+=("$msg")
+              no_fixup_ok=false
+              continue
+            fi
+
+            # CHECK: Conventional Commits format
+            if ! echo "$msg" | grep -qP "$COMMIT_PATTERN"; then
+              echo "❌ Bad format: $msg"
+              bad_commits+=("$msg")
+              commits_ok=false
+            else
+              echo "✅ $msg"
+            fi
+
+            # CHECK: Subject line max 72 chars
+            if [[ ${#msg} -gt 72 ]]; then
+              echo "⚠️  Too long (${#msg} chars): $msg"
+              long_subjects+=("$msg [${#msg} chars]")
+              subject_len_ok=false
+            fi
+
+            # CHECK: No trailing period
+            if echo "$msg" | grep -qP "\.$"; then
+              echo "⚠️  Trailing period: $msg"
+              trailing_period_commits+=("$msg")
+              trailing_period_ok=false
+            fi
+
+          done <<< "$COMMITS"
+          echo "::endgroup::"
+
+          # ── Write findings to shared files ───────────────────
+          printf '%s\n' "${bad_commits[@]+"${bad_commits[@]}"}"         > /tmp/bad_commits.txt
+          printf '%s\n' "${long_subjects[@]+"${long_subjects[@]}"}"     > /tmp/long_subjects.txt
+          printf '%s\n' "${trailing_period_commits[@]+"${trailing_period_commits[@]}"}" > /tmp/trailing_period.txt
+          printf '%s\n' "${wip_commits[@]+"${wip_commits[@]}"}"         > /tmp/wip_commits.txt
+          printf '%s\n' "${fixup_commits[@]+"${fixup_commits[@]}"}"     > /tmp/fixup_commits.txt
+          printf '%s\n' "${merge_commits_found[@]+"${merge_commits_found[@]}"}" > /tmp/merge_commits.txt
+
+          # Export results for next step
+          {
+            echo "branch_ok=$branch_ok"
+            echo "commits_ok=$commits_ok"
+            echo "subject_len_ok=$subject_len_ok"
+            echo "trailing_period_ok=$trailing_period_ok"
+            echo "no_wip_ok=$no_wip_ok"
+            echo "no_fixup_ok=$no_fixup_ok"
+            echo "no_merge_commits_ok=$no_merge_commits_ok"
+          } >> "$GITHUB_OUTPUT"
+
+      # ──────────────────────────────────────────────────────────
+      # CHECK 3–5: PR-specific checks (title, body, issue ref)
+      # ──────────────────────────────────────────────────────────
+      - name: Validate pull request rules
+        id: pr-checks
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          COMMIT_PATTERN='^(feat|fix|docs|style|refactor|test|chore|perf|ci)(\([a-zA-Z0-9_-]+\))?: .{1,72}$'
+
+          # Minimum PR description length (chars)
+          PR_BODY_MIN_LEN=20
+
+          pr_title_ok=true
+          pr_body_ok=true
+          pr_issue_ref_ok=true
+
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
+            echo "Not a PR event — skipping all PR checks."
+            {
+              echo "pr_title_ok=skipped"
+              echo "pr_body_ok=skipped"
+              echo "pr_issue_ref_ok=skipped"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # ── PR Title ─────────────────────────────────────────
+          echo "::group::PR title"
+          if [[ -z "$PR_TITLE" ]]; then
+            echo "❌ PR title is empty"
+            pr_title_ok=false
+          elif echo "$PR_TITLE" | grep -qiE "^(\[WIP\]|WIP:?)"; then
+            echo "❌ PR title starts with WIP: $PR_TITLE"
+            pr_title_ok=false
+          elif echo "$PR_TITLE" | grep -qP "$COMMIT_PATTERN"; then
+            echo "✅ PR title: $PR_TITLE"
+          else
+            echo "❌ PR title does not follow Conventional Commits: $PR_TITLE"
+            pr_title_ok=false
+          fi
+          echo "::endgroup::"
+
+          # ── PR Description ───────────────────────────────────
+          echo "::group::PR description"
+          BODY_LEN=${#PR_BODY}
+          BODY_TRIMMED=$(echo "$PR_BODY" | tr -d '[:space:]')
+          if [[ -z "$BODY_TRIMMED" || "$BODY_LEN" -lt "$PR_BODY_MIN_LEN" ]]; then
+            echo "❌ PR description is empty or too short (${BODY_LEN} chars, minimum ${PR_BODY_MIN_LEN})"
+            pr_body_ok=false
+          else
+            echo "✅ PR description present (${BODY_LEN} chars)"
+          fi
+          echo "::endgroup::"
+
+          # ── Issue / Ticket Reference ─────────────────────────
+          echo "::group::Issue reference"
+          ISSUE_REF_PATTERN='(Closes|Fixes|Resolves|Related to|Ref|Part of)\s+#[0-9]+'
+          if echo "$PR_BODY" | grep -qiP "$ISSUE_REF_PATTERN"; then
+            echo "✅ Issue reference found in PR description"
+          else
+            echo "⚠️  No issue reference found (Closes #123, Fixes #456, etc.)"
+            pr_issue_ref_ok=false
+          fi
+          echo "::endgroup::"
+
+          # Export results
+          {
+            echo "pr_title_ok=$pr_title_ok"
+            echo "pr_body_ok=$pr_body_ok"
+            echo "pr_issue_ref_ok=$pr_issue_ref_ok"
+          } >> "$GITHUB_OUTPUT"
+
+      # ──────────────────────────────────────────────────────────
+      # FINAL REPORT: Smart feedback — only show what failed
+      # ──────────────────────────────────────────────────────────
+      - name: Standards Report
+        if: always()
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          # Git check results
+          R_BRANCH: ${{ steps.git-checks.outputs.branch_ok }}
+          R_COMMITS: ${{ steps.git-checks.outputs.commits_ok }}
+          R_SUBJECT_LEN: ${{ steps.git-checks.outputs.subject_len_ok }}
+          R_TRAILING: ${{ steps.git-checks.outputs.trailing_period_ok }}
+          R_WIP: ${{ steps.git-checks.outputs.no_wip_ok }}
+          R_FIXUP: ${{ steps.git-checks.outputs.no_fixup_ok }}
+          R_MERGE: ${{ steps.git-checks.outputs.no_merge_commits_ok }}
+          # PR check results
+          R_PR_TITLE: ${{ steps.pr-checks.outputs.pr_title_ok }}
+          R_PR_BODY: ${{ steps.pr-checks.outputs.pr_body_ok }}
+          R_PR_ISSUE: ${{ steps.pr-checks.outputs.pr_issue_ref_ok }}
+        run: |
+          violations=()
+          warnings=()
+          passed=()
+
+          is_pr=false
+          [[ "$EVENT_NAME" == "pull_request" ]] && is_pr=true
+
+          # ── Categorize results ───────────────────────────────
+
+          # Branch
+          if [[ "$R_BRANCH" == "false" ]]; then
+            violations+=("BRANCH")
+          else
+            passed+=("Branch name")
+          fi
+
+          # Conventional Commits format
+          if [[ "$R_COMMITS" == "false" ]]; then
+            violations+=("COMMIT_FORMAT")
+          else
+            passed+=("Commit message format")
+          fi
+
+          # Subject line length
+          if [[ "$R_SUBJECT_LEN" == "false" ]]; then
+            violations+=("COMMIT_LENGTH")
+          else
+            passed+=("Commit subject length (≤72 chars)")
+          fi
+
+          # Trailing period
+          if [[ "$R_TRAILING" == "false" ]]; then
+            violations+=("TRAILING_PERIOD")
+          else
+            passed+=("No trailing period in commits")
+          fi
+
+          # WIP commits
+          if [[ "$R_WIP" == "false" ]]; then
+            violations+=("WIP")
+          else
+            passed+=("No WIP commits")
+          fi
+
+          # Fixup/squash commits
+          if [[ "$R_FIXUP" == "false" ]]; then
+            violations+=("FIXUP")
+          else
+            passed+=("No fixup!/squash! commits")
+          fi
+
+          # Merge commits / linear history
+          if [[ "$R_MERGE" == "false" ]]; then
+            violations+=("MERGE_COMMIT")
+          else
+            passed+=("Linear commit history")
+          fi
+
+          # PR-specific
+          if $is_pr; then
+            if [[ "$R_PR_TITLE" == "false" ]]; then
+              violations+=("PR_TITLE")
+            else
+              passed+=("PR title format")
+            fi
+
+            if [[ "$R_PR_BODY" == "false" ]]; then
+              violations+=("PR_BODY")
+            else
+              passed+=("PR description")
+            fi
+
+            if [[ "$R_PR_ISSUE" == "false" ]]; then
+              warnings+=("PR_ISSUE_REF")
+            else
+              passed+=("Issue reference in PR")
+            fi
+          else
+            passed+=("PR checks (not applicable on push)")
+          fi
+
+          # ── Print report ─────────────────────────────────────
+          TOTAL_VIOLATIONS=${#violations[@]}
+          TOTAL_WARNINGS=${#warnings[@]}
+
+          echo ""
+          echo "══════════════════════════════════════════════════"
+          echo "           REPOSITORY STANDARDS REPORT"
+          echo "══════════════════════════════════════════════════"
+          echo ""
+
+          if [[ $TOTAL_VIOLATIONS -eq 0 && $TOTAL_WARNINGS -eq 0 ]]; then
+            echo "✅ All repository standards passed!"
+            echo ""
+            echo "Checks completed:"
+            for p in "${passed[@]}"; do
+              echo "  ✅ $p"
+            done
+            echo ""
+            echo "══════════════════════════════════════════════════"
+            exit 0
+          fi
+
+          # Print violations
+          if [[ $TOTAL_VIOLATIONS -gt 0 ]]; then
+            if [[ $TOTAL_VIOLATIONS -eq 1 ]]; then
+              echo "❌ 1 rule violation found. Please fix before merging."
+            else
+              echo "❌ $TOTAL_VIOLATIONS rule violations found. Please fix before merging."
+            fi
+            echo ""
+            echo "── VIOLATIONS (must fix) ─────────────────────────"
+            echo ""
+
+            ISSUE_NUM=1
+
+            for v in "${violations[@]}"; do
+              case "$v" in
+
+                BRANCH)
+                  echo "$ISSUE_NUM. Invalid branch name"
+                  echo "   Current : $BRANCH_NAME"
+                  echo "   Format  : <type>/<short-description>"
+                  echo "   Types   : feature | fix | hotfix | chore | refactor | docs | test"
+                  echo "   Rules   : lowercase letters, hyphens only, no leading/trailing hyphens"
+                  echo "   Example : feature/add-user-profile"
+                  echo ""
+                  ((ISSUE_NUM++))
+                  ;;
+
+                COMMIT_FORMAT)
+                  echo "$ISSUE_NUM. Commit message(s) do not follow Conventional Commits"
+                  echo "   Format  : <type>(optional-scope): <description>"
+                  echo "   Types   : feat | fix | docs | style | refactor | test | chore | perf | ci"
+                  echo "   Example : feat(auth): add Google login"
+                  echo ""
+                  echo "   Offending commits:"
+                  while IFS= read -r bad; do
+                    [[ -n "$bad" ]] && echo "     ✗ $bad"
+                  done < /tmp/bad_commits.txt
+                  echo ""
+                  ((ISSUE_NUM++))
+                  ;;
+
+                COMMIT_LENGTH)
+                  echo "$ISSUE_NUM. Commit subject line exceeds 72 characters"
+                  echo "   Rule    : Keep the subject line to 72 chars or fewer"
+                  echo "   Reason  : Ensures readability in git log and GitHub UI"
+                  echo ""
+                  echo "   Offending commits:"
+                  while IFS= read -r bad; do
+                    [[ -n "$bad" ]] && echo "     ✗ $bad"
+                  done < /tmp/long_subjects.txt
+                  echo ""
+                  ((ISSUE_NUM++))
+                  ;;
+
+                TRAILING_PERIOD)
+                  echo "$ISSUE_NUM. Commit subject ends with a trailing period"
+                  echo "   Rule    : Do not end the subject line with a period"
+                  echo "   Example : feat(api): add rate limiting  ← correct"
+                  echo "             feat(api): add rate limiting. ← incorrect"
+                  echo ""
+                  echo "   Offending commits:"
+                  while IFS= read -r bad; do
+                    [[ -n "$bad" ]] && echo "     ✗ $bad"
+                  done < /tmp/trailing_period.txt
+                  echo ""
+                  ((ISSUE_NUM++))
+                  ;;
+
+                WIP)
+                  echo "$ISSUE_NUM. Work-in-progress (WIP) commits detected"
+                  echo "   Rule    : WIP commits must not be pushed to shared branches"
+                  echo "   Action  : Squash, amend, or reword before pushing"
+                  echo ""
+                  echo "   Offending commits:"
+                  while IFS= read -r bad; do
+                    [[ -n "$bad" ]] && echo "     ✗ $bad"
+                  done < /tmp/wip_commits.txt
+                  echo ""
+                  ((ISSUE_NUM++))
+                  ;;
+
+                FIXUP)
+                  echo "$ISSUE_NUM. Fixup or squash commits detected"
+                  echo "   Rule    : fixup! and squash! commits must be squashed before merging"
+                  echo "   Action  : Run: git rebase -i <base-branch> and squash/fixup them"
+                  echo ""
+                  echo "   Offending commits:"
+                  while IFS= read -r bad; do
+                    [[ -n "$bad" ]] && echo "     ✗ $bad"
+                  done < /tmp/fixup_commits.txt
+                  echo ""
+                  ((ISSUE_NUM++))
+                  ;;
+
+                MERGE_COMMIT)
+                  echo "$ISSUE_NUM. Merge commits detected — linear history required"
+                  echo "   Rule    : Use rebase instead of merge to keep history clean"
+                  echo "   Action  : git rebase origin/<base-branch> instead of git merge"
+                  echo ""
+                  echo "   Offending commits:"
+                  while IFS= read -r bad; do
+                    [[ -n "$bad" ]] && echo "     ✗ $bad"
+                  done < /tmp/merge_commits.txt
+                  echo ""
+                  ((ISSUE_NUM++))
+                  ;;
+
+                PR_TITLE)
+                  echo "$ISSUE_NUM. PR title does not follow Conventional Commits"
+                  echo "   Current : \"$PR_TITLE\""
+                  echo "   Format  : <type>(optional-scope): <description>"
+                  echo "   Types   : feat | fix | docs | style | refactor | test | chore | perf | ci"
+                  echo "   Example : feat(auth): add Google login"
+                  echo ""
+                  ((ISSUE_NUM++))
+                  ;;
+
+                PR_BODY)
+                  echo "$ISSUE_NUM. PR description is empty or too short"
+                  echo "   Rule    : Describe what this PR does and why (minimum 20 characters)"
+                  echo "   Include : Summary of changes, motivation, and any relevant context"
+                  echo ""
+                  ((ISSUE_NUM++))
+                  ;;
+
+              esac
+            done
+          fi
+
+          # Print warnings (non-blocking)
+          if [[ $TOTAL_WARNINGS -gt 0 ]]; then
+            echo "── WARNINGS (recommended to fix) ────────────────"
+            echo ""
+
+            for w in "${warnings[@]}"; do
+              case "$w" in
+
+                PR_ISSUE_REF)
+                  echo "⚠️  No issue reference found in PR description"
+                  echo "   Suggestion  : Link this PR to a tracking issue for traceability"
+                  echo "   Formats     : Closes #123  |  Fixes #456  |  Resolves #789"
+                  echo "                 Related to #123  |  Ref #456  |  Part of #789"
+                  echo ""
+                  ;;
+
+              esac
+            done
+          fi
+
+          # Print passed checks
+          if [[ ${#passed[@]} -gt 0 ]]; then
+            echo "── PASSED ────────────────────────────────────────"
+            echo ""
+            for p in "${passed[@]}"; do
+              echo "  ✅ $p"
+            done
+            echo ""
+          fi
+
+          echo "══════════════════════════════════════════════════"
+
+          # Fail only on violations, not warnings
+          if [[ $TOTAL_VIOLATIONS -gt 0 ]]; then
+            exit 1
+          fi

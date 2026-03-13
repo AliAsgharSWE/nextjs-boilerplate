@@ -316,9 +316,121 @@ This project includes:
 - **Husky** for Git hooks
 - **Strict TypeScript** configuration
 
+## 📐 Repository Standards
+
+This project enforces Git standards automatically via GitHub Actions on every push and pull request. Violations will fail the CI check with clear, actionable feedback.
+
+### Commit Messages — Conventional Commits
+
+All commit messages must follow this format:
+
+```
+<type>(optional-scope): <short description>
+```
+
+| Type | When to use |
+|---|---|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `docs` | Documentation changes |
+| `style` | Formatting, no logic change |
+| `refactor` | Code restructuring |
+| `test` | Adding or updating tests |
+| `chore` | Maintenance tasks |
+| `perf` | Performance improvements |
+| `ci` | CI/CD related changes |
+
+**Valid examples:**
+```
+feat(auth): add Google login
+fix(payment): resolve 3DS validation issue
+docs: update API documentation
+refactor(user): simplify profile service
+chore: update dependencies
+```
+
+**Invalid examples:**
+```
+fixed stuff          ❌ no type prefix
+WIP                  ❌ not descriptive
+update code          ❌ missing type
+```
+
+---
+
+### Branch Naming
+
+Branch names must follow this format:
+
+```
+<type>/<short-description>
+```
+
+Allowed types: `feature`, `fix`, `hotfix`, `chore`, `refactor`, `docs`, `test`
+
+Rules:
+- Lowercase only
+- Hyphens to separate words (no underscores or spaces)
+- No trailing or leading hyphens
+
+**Valid examples:**
+```
+feature/add-user-profile
+fix/payment-timeout
+hotfix/login-crash
+chore/update-dependencies
+docs/api-reference
+```
+
+**Invalid examples:**
+```
+my-branch            ❌ no type prefix
+Feature/AddLogin     ❌ uppercase letters
+fix_payment_bug      ❌ underscores not allowed
+```
+
+---
+
+### Pull Request Titles
+
+PR titles must follow the same Conventional Commits format as commit messages:
+
+```
+feat(scope): short description of change
+```
+
+---
+
+### CI Feedback
+
+The workflow only reports the rules that were violated — checks that pass are not repeated. Example failure output:
+
+```
+❌ 2 repository rules were violated.
+
+Please fix the following:
+
+1. Commit message(s) must follow Conventional Commits format:
+   Format : <type>(optional-scope): <short description>
+   Example: feat(auth): add Google login
+
+   Offending commits:
+     ✗ fixed stuff
+
+2. Branch name must follow the naming convention:
+   Format  : <type>/<short-description>
+   Current : my-branch
+
+─────────────────────────────────────────
+All other checks passed successfully:
+  ✅ PR title
+```
+
+---
+
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please follow the [Repository Standards](#-repository-standards) above before submitting a Pull Request.
 
 ## 📄 License
 
